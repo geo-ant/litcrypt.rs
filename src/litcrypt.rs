@@ -14,7 +14,7 @@
 //! 
 //! ```rust
 //! [dependencies]
-//! litcrypt2 = "0.1.3"
+//! litcrypt2 = "0.1.2"
 //! ```
 //! 
 //! Example:
@@ -68,8 +68,6 @@ extern crate quote;
 #[macro_use(expect)]
 extern crate expectest;
 
-extern crate alloc;
-
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Literal;
 use rand::{rngs::OsRng, RngCore};
@@ -87,7 +85,7 @@ lazy_static::lazy_static! {
 }
 
 #[inline(always)]
-fn get_magic_spell() -> alloc::vec::Vec<u8> {
+fn get_magic_spell() -> Vec<u8> {
     match env::var("LITCRYPT_ENCRYPT_KEY") {
         Ok(key) => {key.as_bytes().to_vec()},
         Err(_) => {
@@ -104,7 +102,7 @@ fn get_magic_spell() -> alloc::vec::Vec<u8> {
 /// This key is also encrypted an  will not visible in a static analyzer.
 #[proc_macro]
 pub fn use_litcrypt(_tokens: TokenStream) -> TokenStream {
-    let magic_spell: alloc::vec::Vec<u8> = get_magic_spell();
+    let magic_spell: Vec<u8> = get_magic_spell();
 
     let encdec_func = quote! {
         pub mod litcrypt_internal {
@@ -112,7 +110,7 @@ pub fn use_litcrypt(_tokens: TokenStream) -> TokenStream {
             /// Returns result of a XOR operation applied to a `source` byte sequence.
             ///
             /// `key` will be an infinitely repeating byte sequence.
-            pub fn xor(source: &[u8], key: &[u8]) -> alloc::vec::Vec<u8> {
+            pub fn xor(source: &[u8], key: &[u8]) -> Vec<u8> {
                 match key.len() {
                     0 => source.into(),
                     1 => xor_with_byte(source, key[0]),
@@ -126,7 +124,7 @@ pub fn use_litcrypt(_tokens: TokenStream) -> TokenStream {
             /// Returns result of a XOR operation applied to a `source` byte sequence.
             ///
             /// `byte` will be an infinitely repeating byte sequence.
-            pub fn xor_with_byte(source: &[u8], byte: u8) -> alloc::vec::Vec<u8> {
+            pub fn xor_with_byte(source: &[u8], byte: u8) -> Vec<u8> {
                 source.iter().map(|&a| a ^ byte).collect()
             }
 
@@ -179,9 +177,9 @@ pub fn use_litcrypt(_tokens: TokenStream) -> TokenStream {
                 }
             }
 
-            pub fn decrypt_bytes(encrypted: &[u8], encrypt_key: &[u8]) -> alloc::string::String {
+            pub fn decrypt_bytes(encrypted: &[u8], encrypt_key: &[u8]) -> String {
                 let decrypted = xor(&encrypted[..], &encrypt_key);
-                alloc::string::String::from_utf8(decrypted).unwrap()
+                String::from_utf8(decrypted).unwrap()
             }
         }
     };
@@ -199,7 +197,7 @@ pub fn use_litcrypt(_tokens: TokenStream) -> TokenStream {
 /// Encrypts the resp. string with the key set before, via calling [`use_litcrypt!`].
 #[proc_macro]
 pub fn lc(tokens: TokenStream) -> TokenStream {
-    let mut something = alloc::string::String::from("");
+    let mut something = String::from("");
     for tok in tokens {
         something = match tok {
             TokenTree::Literal(lit) => {
