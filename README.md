@@ -24,9 +24,6 @@ Example:
 extern crate litcrypt2;
 use_litcrypt!();
 
-extern crate alloc;
-
-
 fn main()
 {
     println!("his name is: {}", lc!("Voldemort"));
