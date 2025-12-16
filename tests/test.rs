@@ -14,6 +14,7 @@ pub fn test_literal2() {
 }
 
 #[test]
+#[cfg(feature = "env")]
 pub fn test_env() {
     assert_eq!(lc_env!("SECRET_ENV"), "Shhhhhh");
 }

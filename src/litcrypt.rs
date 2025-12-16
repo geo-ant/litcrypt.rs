@@ -1,68 +1,74 @@
-//! LITCRYPT2 
+//! LITCRYPT2
 //! ===========
-//! 
+//!
 //! It's a short name of "Literal Encryption", a Rust proc macro that encrypts text using a basic XOR method. It protect plain text from static analysis tools and helps keep your important app safe from cracking activity.
-//! 
+//!
 //! LITCRYPT2 encrypts strings when compiling, keeping them encrypted in both disk and memory while running, and only decrypting them when needed.
-//! 
+//!
 //! This crate is just a maintained and updated fork of the original crate, **LITCRYPT** by **Robin Syihab (r@ansvia.com)**.
-//! 
+//!
 //! USAGE
 //! -----
-//! 
+//!
 //! Dependencies:
-//! 
-//! ```rust
+//!
+//! ```toml
 //! [dependencies]
 //! litcrypt2 = "0.1.2"
 //! ```
-//! 
+//!
 //! Example:
-//! 
+//!
 //! ```rust
 //! #[macro_use]
 //! extern crate litcrypt2;
-//! 
+//!
 //! use_litcrypt!();
-//! 
+//!
 //! fn main()
 //! {
 //!     println!("his name is: {}", lc!("Voldemort"));
 //! }
-//! 
+//!
 //! fn raw_string()
 //! {
 //!     println!("The command line console can be found in the path {}", lc!(r"C:\Windows\System32\cmd.exe"));
 //! }
 //! ```
-//! 
+//!
 //! `use_litcrypt!` macro call should be called first for initialization before you can
-//! use `lc!` macro function. 
-//! 
-//! Please take note that you can set your encryption key to a specific value using the environment variable 
+//! use `lc!` macro function.
+//!
+//! Please take note that you can set your encryption key to a specific value using the environment variable
 //! `LITCRYPT_ENCRYPT_KEY` before compile. In case that you don't set this environment variable, the crate
 //! will generate a random encryption key at compilation time:
 //! e.g:
-//! 
-//!     $ export LITCRYPT_ENCRYPT_KEY="myverysuperdupermegaultrasecretkey"
-//! 
+//!
+//! ```shell
+//! $ export LITCRYPT_ENCRYPT_KEY="myverysuperdupermegaultrasecretkey"
+//! ```
+//!
 //! Litcrypt will encrypt each string written inside `lc!` statically.
-//! 
+//!
 //! Check the output binary using `strings` command to verify:
-//! 
-//!     $ strings target/debug/my_valuable_app | grep Voldemort
-//! 
+//!
+//! ```shell
+//! $ strings target/debug/my_valuable_app | grep Voldemort
+//! ```
+//!
 //! If the output is blank then your valuable string in your app is safe from static analyzer tool
 //! like Hexeditor etc.
-//! 
+//!
 //! For working example code see `./examples` directory, and test using:
-//! 
-//!     $ cargo run --example simple
+//!
+//! ```shell
+//! $ cargo run --example simple
+//! ```
 
 extern crate proc_macro;
 extern crate proc_macro2;
-extern crate rand;
 extern crate quote;
+extern crate rand;
 
 #[cfg(test)]
 #[macro_use(expect)]
@@ -70,8 +76,9 @@ extern crate expectest;
 
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Literal;
-use rand::{rngs::OsRng, RngCore};
 use quote::quote;
+use rand::{rngs::OsRng, RngCore};
+#[cfg(feature = "env")]
 use std::env;
 
 mod xor;
@@ -86,14 +93,21 @@ lazy_static::lazy_static! {
 
 #[inline(always)]
 fn get_magic_spell() -> Vec<u8> {
-    match env::var("LITCRYPT_ENCRYPT_KEY") {
-        Ok(key) => {key.as_bytes().to_vec()},
-        Err(_) => {
-            // `lc!` will call this function multi times
-            // we must provide exact same result for each invocation
-            // so use static lazy field for cache
-            RAND_SPELL.to_vec()
+    #[cfg(feature = "env")]
+    {
+        match env::var("LITCRYPT_ENCRYPT_KEY") {
+            Ok(key) => key.as_bytes().to_vec(),
+            Err(_) => {
+                // `lc!` will call this function multi times
+                // we must provide exact same result for each invocation
+                // so use static lazy field for cache
+                RAND_SPELL.to_vec()
+            }
         }
+    }
+    #[cfg(not(feature = "env"))]
+    {
+        RAND_SPELL.to_vec()
     }
 }
 
@@ -155,8 +169,8 @@ pub fn use_litcrypt(_tokens: TokenStream) -> TokenStream {
 
                 if index + 2 < count {
                     index + 2
-                } 
-                else 
+                }
+                else
                 {
                     if count % 2 == 0
                     {
@@ -201,28 +215,29 @@ pub fn lc(tokens: TokenStream) -> TokenStream {
     for tok in tokens {
         something = match tok {
             TokenTree::Literal(lit) => {
-                let mut lit_str: String = lit.to_string(); 
+                let mut lit_str: String = lit.to_string();
                 let first_occurrence = lit_str.find("\"");
                 let last_occurrence = lit_str.rfind("\"");
 
-                if !first_occurrence.is_none() && !last_occurrence.is_none(){
-                    lit_str = lit_str[first_occurrence.unwrap() + 1..last_occurrence.unwrap()].to_string();
-                }
-                else {
+                if !first_occurrence.is_none() && !last_occurrence.is_none() {
+                    lit_str = lit_str[first_occurrence.unwrap() + 1..last_occurrence.unwrap()]
+                        .to_string();
+                } else {
                     lit_str = lit_str[1..lit_str.len() - 1].to_string();
                 }
 
                 lit_str
-            },
+            }
             _ => "<unknown>".to_owned(),
         }
     }
-    
+
     encrypt_string(something)
 }
 
 /// Encrypts an environment variable at compile time with the key set before, via calling [`use_litcrypt!`].
 #[proc_macro]
+#[cfg(feature = "env")]
 pub fn lc_env(tokens: TokenStream) -> TokenStream {
     let mut var_name = String::from("");
 
